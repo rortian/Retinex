@@ -183,7 +183,7 @@ public class ByteImage {
             float offset = 0;
             for (int i = start; i < stop; i++) {
 
-                int first = (hasAlpha) ? i * 4 : i * 3;
+                int first = (hasAlpha) ? i * 4 + 1 : i * 3;
 
                 int destFirst = i * 3;
 
@@ -249,7 +249,7 @@ public class ByteImage {
         for(int i=0;i<dest.length;i++)
             dest[i] = 0;
 
-        System.out.println("Width\t"+width+"\tHeight\t"+height);
+        //System.out.println("Width\t"+width+"\tHeight\t"+height);
         
         //WritableRaster inRaster = inputImage.getRaster();
         Raster inRaster = inputImage.getRaster();
