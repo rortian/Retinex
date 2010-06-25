@@ -183,7 +183,7 @@ public class ByteImage {
             float offset = 0;
             for (int i = start; i < stop; i++) {
 
-                int first = (hasAlpha) ? i * 4 : i * 3;
+                int first = (hasAlpha) ? i * 4 + 1 : i * 3;
 
                 int destFirst = i * 3;
 
