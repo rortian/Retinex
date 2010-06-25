@@ -223,12 +223,12 @@ public class ByteImage {
                     break;
             }
             for(int i=start;i<stop;i++){
-                int first = (hasAlpha) ? i * 4 : i * 3;
+                int first = (hasAlpha) ? i * 4 + 1 : i * 3;
                 int destFirst = i * 3;
 
                 for(int j=0;j<3;j++){
                     float c = 255 *(dest[destFirst+j]-mini)/range;
-                    original[first+j+(hasAlpha ? 1 : 0)] = translate(c);
+                    original[first+j] = translate(c);
                 }
             }
         }
@@ -258,12 +258,12 @@ public class ByteImage {
 
         original = dbIn.getData();
 
-        for(int i = 0;i<100;i++)
+        /*/for(int i = 0;i<100;i++)
             System.out.print(original[i]+"\t");
-        System.out.println();
+        System.out.println();*/
 
         hasAlpha = (width*height*4 == original.length);
-        System.out.println(original.length+"\t"+hasAlpha);
+        //System.out.println(original.length+"\t"+hasAlpha);
 
         weight = (float) 1.0 / nscales;
         Worker[] workers = new Worker[3];
@@ -334,11 +334,11 @@ public class ByteImage {
         maxi = (float) (mean + cvar * var);
         range = maxi - mini;
 
-        System.out.println(range);
+        /*System.out.println(range);
         System.out.println(var);
         System.out.println(mean);
         System.out.println(vsquared);
-        System.out.println(cvar);
+        System.out.println(cvar);*/
 
         Thread[] last = new Thread[3];
         for(int i=0;i<3;i++){
@@ -355,9 +355,9 @@ public class ByteImage {
             Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        for(int i = 0;i<100;i++)
+        /*for(int i = 0;i<100;i++)
             System.out.print(original[i]+"\t");
-        System.out.println();
+        System.out.println();*/
     }
 
 
