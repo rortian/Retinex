@@ -19,8 +19,8 @@ public class Tester {
         System.out.println(ByteImage.translate(255f));
         System.out.println(ByteImage.translate(128f));
         System.out.println(ByteImage.translate(129f));
-
-
+        for(float f = -7;f<260;f+=1)
+            System.out.println(ByteImage.translate(f));
     }
 
 }

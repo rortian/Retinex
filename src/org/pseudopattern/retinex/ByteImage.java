@@ -6,10 +6,10 @@
 package org.pseudopattern.retinex;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
+
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
-import java.awt.image.WritableRaster;
+
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,7 +28,6 @@ public class ByteImage {
     boolean hasAlpha;
     byte[] original;
     float[] dest,meanRaw,vsquaredRaw;
-    int[] thirds;
     private static final byte maxByte = Byte.MAX_VALUE;
 
     private class Worker extends Thread {
@@ -346,7 +345,7 @@ public class ByteImage {
             last[i].start();
         }
         
-        System.out.println("before");
+        //System.out.println("before");
 
         try {
             for(int i=0;i<3;i++)
@@ -365,13 +364,19 @@ public class ByteImage {
 
     public static float translate(byte b) {
         if (b >= 0) {
-            return b;
+            return (float)b;
         }
         float toReturn = 128;
-        return toReturn + (b & maxByte);
+        return toReturn + (float)(b & maxByte);
     }
 
     public static byte translate(float f){
+        if(f > 255 || f<0){
+            //System.out.println("Fuck!\t"+f);
+            if(f > 255)
+                return (byte)-1;
+            return 0;
+        }
         int i = Math.round(f);
         if(i<128){
             return (byte) i;

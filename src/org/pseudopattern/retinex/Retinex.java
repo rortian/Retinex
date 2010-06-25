@@ -46,12 +46,12 @@ public class Retinex {
 
         Raster inRaster = inputImage.getData();
         DataBuffer buffer = inRaster.getDataBuffer();
-        System.out.println(buffer.getNumBanks()+"banks");
+        //System.out.println(buffer.getNumBanks()+"banks");
         DataBuffer writing = null;
         BufferedImage outie = null;
         switch (buffer.getDataType()){
             case DataBuffer.TYPE_BYTE:
-                System.out.println("byte");
+                //System.out.println("byte");
                 ByteImage bi = new ByteImage(inputImage,options);
                 break;
             case DataBuffer.TYPE_DOUBLE:
