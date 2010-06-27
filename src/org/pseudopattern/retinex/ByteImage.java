@@ -9,6 +9,10 @@ import java.awt.image.BufferedImage;
 
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -23,17 +27,28 @@ public class ByteImage {
 
     int scale,nscales,scales_mode,width,height,channelSize;
     double cvar;
-    float weight,mean,vsquared,mini,maxi,range;
+    float weight,mean,vsquared,mini,maxi,range,alpha,gain,offset;
     double[] retinexScales;
-    boolean hasAlpha;
+    boolean hasAlpha,lowmem;
     byte[] original;
     float[] dest,meanRaw,vsquaredRaw;
     private static final byte maxByte = Byte.MAX_VALUE;
 
+    /*private static BufferedWriter bw;
+
+    static {
+        try {
+            bw = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/outofbounds"));
+        } catch (IOException ex) {
+            Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }*/
+
+
+
     private class Worker extends Thread {
 
         final int channel;
-        byte[] data;
         GaussCoeff coefs;
         float[] in;
 
@@ -69,6 +84,13 @@ public class ByteImage {
         public void run(){
             for(int currentScale=0;currentScale<nscales;currentScale++){
                 compute_coefs(retinexScales[currentScale]);
+                /*System.out.println("B:\t"+coefs.B);
+                System.out.println("b0:\t"+coefs.b[0]);
+                System.out.println("b1:\t"+coefs.b[1]);
+                System.out.println("b2:\t"+coefs.b[2]);
+                System.out.println("b3:\t"+coefs.b[3]);
+                System.out.println("sigma:\t"+coefs.sigma);*/
+
                 for(int row=0;row<height;row++){
                     gaussSmooth(row*width,width,1);
                 }
@@ -177,9 +199,6 @@ public class ByteImage {
                     stop = width*height;
                     break;
             }
-            float alpha = 128;
-            float gain = 1;
-            float offset = 0;
             for (int i = start; i < stop; i++) {
 
                 int first = (hasAlpha) ? i * 4 + 1 : i * 3;
@@ -239,6 +258,10 @@ public class ByteImage {
         nscales = options.get("nscales").intValue();
         scales_mode = options.get("scales_mode").intValue();
         cvar = options.get("cvar").doubleValue();
+        alpha = options.get("alpha").floatValue();
+        gain = options.get("gain").floatValue();
+        offset = options.get("offset").floatValue();
+        lowmem = options.get("lowmem").intValue() == 1;
 
         retinex_scales_distribution();
         width = inputImage.getWidth();
@@ -269,13 +292,28 @@ public class ByteImage {
         for(int channel = 0; channel < 3; channel++){
             workers[channel] = new Worker(channel);
             workers[channel].start();
+            if(lowmem){
+                try {
+                    workers[channel].join();
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
         }
-        for(int i=0;i<3;i++)
-            try {
-            workers[i].join();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+        if (!lowmem) {
+            for (int i = 0; i < 3; i++) {
+                try {
+                    workers[i].join();
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
         }
+        //recordDest("-afterworker");
+
+
+
+
 
         Thread[] gainers = new Thread[3];
 
@@ -293,7 +331,7 @@ public class ByteImage {
             Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-
+        //recordDest("-aftergain");
 
 
         mean = 0;
@@ -333,16 +371,21 @@ public class ByteImage {
         maxi = (float) (mean + cvar * var);
         range = maxi - mini;
 
-        /*System.out.println(range);
-        System.out.println(var);
-        System.out.println(mean);
-        System.out.println(vsquared);
-        System.out.println(cvar);*/
+        System.out.println("range:\t"+range);
+        System.out.println("var:\t"+var);
+        System.out.println("mean:\t"+mean);
+        System.out.println("vsquared\t"+vsquared);
+        System.out.println("cvar\t"+cvar);
 
         Thread[] last = new Thread[3];
         for(int i=0;i<3;i++){
             last[i] = new Pixeler(i);
             last[i].start();
+            /*try {
+                last[i].join();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+            }*/
         }
         
         //System.out.println("before");
@@ -354,9 +397,14 @@ public class ByteImage {
             Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        /*for(int i = 0;i<100;i++)
+        for(int i = 0;i<100;i++)
             System.out.print(original[i]+"\t");
-        System.out.println();*/
+        System.out.println();
+       /* try {
+            bw.close();
+        } catch (IOException ex) {
+            Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+        }*/
     }
 
 
@@ -372,7 +420,13 @@ public class ByteImage {
 
     public static byte translate(float f){
         if(f > 255 || f<0){
-            //System.out.println("Fuck!\t"+f);
+            /*try {
+                //System.out.println("Fuck!\t"+f);
+                /*bw.write(String.valueOf(f));
+                bw.newLine();
+            } catch (IOException ex) {
+                Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+            }*/
             if(f > 255)
                 return (byte)-1;
             return 0;
@@ -416,6 +470,22 @@ public class ByteImage {
                         break;
                 }
                 break;
+        }
+    }
+
+    private void recordDest(String suffix) {
+        String dir = "/home/rortian/retinex-goofy/dest/";
+        long time = System.currentTimeMillis();
+        File fi = new File(dir+time+suffix);
+        try {
+            BufferedWriter b = new BufferedWriter(new FileWriter(dir+time+suffix));
+            for(float f : dest){
+                b.write(String.valueOf(f));
+                b.newLine();
+            }
+            b.close();
+        } catch (IOException ex) {
+            Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

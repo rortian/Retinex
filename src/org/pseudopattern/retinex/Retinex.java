@@ -31,10 +31,17 @@ public class Retinex {
         defaults.put("nscales", 3);
         defaults.put("scales_mode",UNIFORM);
         defaults.put("cvar", 1.2);
+        defaults.put("alpha",128);
+        defaults.put("gain", 1);
+        defaults.put("offset", 0);
+        defaults.put("lowmem", 0);
     }
 
     public static void retinex(File input,File output) throws IOException{
-        retinex(input,output,defaults);
+        HashMap<String,Number> empty = new HashMap<String,Number>();
+        //empty.put("nscales", 2);
+        //empty.put("scale", 14);
+        retinex(input,output,empty);
     }
 
     public static void retinex(File input,File output,String json){
@@ -42,6 +49,14 @@ public class Retinex {
     }
 
     public static void retinex(File input,File output,HashMap<String,Number> options) throws IOException {
+        HashMap<String,Number> actual = new HashMap<String,Number>();
+        for(String s : defaults.keySet())
+            actual.put(s, defaults.get(s));
+
+        for(String s : options.keySet()){
+            actual.put(s, options.get(s));
+        }
+
         BufferedImage inputImage = ImageIO.read(input);
 
         Raster inRaster = inputImage.getData();
@@ -52,7 +67,7 @@ public class Retinex {
         switch (buffer.getDataType()){
             case DataBuffer.TYPE_BYTE:
                 //System.out.println("byte");
-                ByteImage bi = new ByteImage(inputImage,options);
+                ByteImage bi = new ByteImage(inputImage,actual);
                 break;
             case DataBuffer.TYPE_DOUBLE:
                 System.out.println("double");
