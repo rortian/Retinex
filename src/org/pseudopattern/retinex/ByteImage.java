@@ -84,12 +84,13 @@ public class ByteImage {
         public void run(){
             for(int currentScale=0;currentScale<nscales;currentScale++){
                 compute_coefs(retinexScales[currentScale]);
-                /*System.out.println("B:\t"+coefs.B);
+                if(channel == 0){
+                System.out.println("B:\t"+coefs.B);
                 System.out.println("b0:\t"+coefs.b[0]);
                 System.out.println("b1:\t"+coefs.b[1]);
                 System.out.println("b2:\t"+coefs.b[2]);
                 System.out.println("b3:\t"+coefs.b[3]);
-                System.out.println("sigma:\t"+coefs.sigma);*/
+                System.out.println("sigma:\t"+coefs.sigma);}
 
                 for(int row=0;row<height;row++){
                     gaussSmooth(row*width,width,1);
@@ -134,15 +135,20 @@ public class ByteImage {
         }
 
         private void compute_coefs(double sigma){
-            double q,q2,q3;
-            if(sigma>=2.5){
+            double q, q2, q3;
+            if (sigma >= 2.5) {
                 q = 0.98711 * sigma - 0.96330;
-            } else if((sigma >= 0.5)){
-                q = 3.97156 - 4.14554 *  Math.sqrt (1 - 0.26891 * sigma);
             } else {
-                q = 0.1147705018520355224609375;
+                if ((sigma >= 0.5)) {
+                    q = 3.97156 - 4.14554 * Math.sqrt(1 - 0.26891 * sigma);
+                } else {
+                    q = 0.1147705018520355224609375;
+                }
             }
-            q2 = q*q;
+            if(channel == 0){
+                System.out.println("q:\t"+q);
+            }
+            q2 = q * q;
             q3 = q*q2;
             coefs.b[0] = (1.57825+(2.44413*q)+(1.4281 *q2)+(0.422205*q3));
             coefs.b[1] = (        (2.44413*q)+(2.85619*q2)+(1.26661 *q3));
@@ -487,6 +493,10 @@ public class ByteImage {
         } catch (IOException ex) {
             Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+
+    public static void main(String[] args){
+        int x = 6;
     }
 
 }

@@ -94,10 +94,11 @@ public class Retinex {
         File in = new File("/mnt/storage/bigimage2/images/1277343811.png");
         File in2 = new File("/home/rortian/Pictures/jcexamstatus.png");
         File in3 = new File("/home/rortian/Pictures/1276502848-invert-retinex.png");
+        File small = new File("/home/rortian/small.png");
         File out = new File("/home/rortian/whoa.png");
         //System.out.println("1277343811.png");
         //retinex(in,null);
-        System.out.println("jcexamstatus.png");
+        //System.out.println("jcexamstatus.png");
         retinex(in,out);
         //System.out.println("1276502848-invert-retinex.png");
         //retinex(in3,null);
