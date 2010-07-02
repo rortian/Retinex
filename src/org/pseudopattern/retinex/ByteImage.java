@@ -31,7 +31,7 @@ public class ByteImage {
     double[] retinexScales;
     boolean hasAlpha,lowmem;
     byte[] original;
-    float[] dest,meanRaw,vsquaredRaw;
+    float[] dest,meanRaw,vsquaredRaw;//inRaw;
     private static final byte maxByte = Byte.MAX_VALUE;
 
     /*private static BufferedWriter bw;
@@ -50,8 +50,8 @@ public class ByteImage {
 
         final int channel;
         GaussCoeff coefs;
-        float[] in;
-
+        float[] in,out;
+        BufferedWriter bw_one,bw_two,bw_three;
 
 
         Worker(int channel){
@@ -59,8 +59,30 @@ public class ByteImage {
             this.channel = channel;
 
             in = new float[channelSize];
+            out = new float[channelSize];
             for(int i=0;i<channelSize;i++){
                 in[i] = translate(myByte(i))+1.0f;
+            }
+            BufferedWriter bw;
+            try {
+                long time = System.currentTimeMillis();
+                bw_one = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/ins/one-" + channel+"-"+time));
+                bw_two = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/ins/two-" + channel+"-"+time));
+                bw_three = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/ins/three-" + channel+"-"+time));
+            } catch (IOException ex) {
+                Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+
+            try {
+                bw = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/ins/in-" + channel));
+                for (int i = 0; i < channelSize; i++) {
+                    bw.write(String.valueOf(in[i]));
+                    bw.newLine();
+                }
+                bw.close();
+            } catch (IOException ex) {
+                Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
             }
 
 
@@ -92,15 +114,53 @@ public class ByteImage {
                 System.out.println("b3:\t"+coefs.b[3]);
                 System.out.println("sigma:\t"+coefs.sigma);}
 
+
+
                 for(int row=0;row<height;row++){
                     gaussSmooth(row*width,width,1);
                 }
+                for(int i=0;i<channelSize;i++){
+                    in[i] = out[i];
+                    out[i] = 0;
+                }
+
                 for(int col=0;col<width;col++){
 
                     gaussSmooth(col,height,width);
                 }
+                /*for(int i=0;i<channelSize;i++){
+                    inRaw[channel+i*3] += in[i];
+                }*/
                 for(int i=0;i<channelSize;i++){
-                    addDest(i,(float)(weight*(Math.log(translate(myByte(i))+1)-Math.log(in[i]))));
+                    addDest(i,(float)(weight*(Math.log(translate(myByte(i))+1)-Math.log(out[i]))));
+                }
+
+                try {
+                    switch (currentScale){
+                        case 0:
+                            for(int i=0;i<channelSize;i++){
+                                bw_one.write(String.valueOf(in[i]));
+                                bw_one.newLine();
+                            }
+                            bw_one.close();
+                            break;
+                        case 1:
+                            for(int i=0;i<channelSize;i++){
+                                bw_two.write(String.valueOf(in[i]));
+                                bw_two.newLine();
+                            }
+                            bw_two.close();
+                            break;
+                        case 2:
+                            for(int i=0;i<channelSize;i++){
+                                bw_three.write(String.valueOf(in[i]));
+                                bw_three.newLine();
+                            }
+                            bw_three.close();
+                            break;
+                    }
+                } catch (IOException e){
+                    Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, e);
                 }
             }
         }
@@ -127,7 +187,7 @@ public class ByteImage {
             w2[size+3]=w1[size+3];
 
             for(int i=size, n = i;i >=0; i--,n--){
-                w2[n] = in[i*stride+start] = (float)(coefs.B*w1[n]+
+                w2[n] = out[i*stride+start] = (float)(coefs.B*w1[n]+
                         ((coefs.b[1]*w2[n+1]+
                         coefs.b[2]*w2[n+2]+
                         coefs.b[3]*w2[n+3])/ coefs.b[0]));
@@ -274,8 +334,11 @@ public class ByteImage {
         height = inputImage.getHeight();
         channelSize = width*height;
         dest = new float[width*height*3];
-        for(int i=0;i<dest.length;i++)
+        //inRaw = new float[width*height*3];
+        for(int i=0;i<dest.length;i++){
             dest[i] = 0;
+            //inRaw[i] = 0;
+        }
 
         //System.out.println("Width\t"+width+"\tHeight\t"+height);
         
