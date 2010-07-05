@@ -35,12 +35,14 @@ public class Retinex {
         defaults.put("gain", 1);
         defaults.put("offset", 0);
         defaults.put("lowmem", 0);
+        defaults.put("native", 0);
     }
 
     public static void retinex(File input,File output) throws IOException{
         HashMap<String,Number> empty = new HashMap<String,Number>();
         //empty.put("nscales", 2);
         //empty.put("scale", 14);
+        empty.put("native", 1);
         retinex(input,output,empty);
     }
 

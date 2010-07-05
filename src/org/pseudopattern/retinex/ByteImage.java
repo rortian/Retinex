@@ -5,6 +5,8 @@
 
 package org.pseudopattern.retinex;
 
+import com.sun.jna.Library;
+import com.sun.jna.Native;
 import java.awt.image.BufferedImage;
 
 import java.awt.image.DataBufferByte;
@@ -24,12 +26,20 @@ import java.util.logging.Logger;
  */
 public class ByteImage {
 
+    public interface MLibrary extends Library {
+        MLibrary INSTANCE = (MLibrary) Native.loadLibrary("m", MLibrary.class);
+
+        double log(double x);
+    }
+
+    public static final MLibrary M = MLibrary.INSTANCE;
+
 
     int scale,nscales,scales_mode,width,height,channelSize;
     double cvar;
     float weight,mean,vsquared,mini,maxi,range,alpha,gain,offset;
     double[] retinexScales;
-    boolean hasAlpha,lowmem;
+    boolean hasAlpha,lowmem,useNative;
     byte[] original;
     float[] dest,meanRaw,vsquaredRaw;
     private static final byte maxByte = Byte.MAX_VALUE;
@@ -69,7 +79,7 @@ public class ByteImage {
             coefs = new GaussCoeff();
         }
 
-        private byte myByte(int i){
+        protected byte myByte(int i){
             if(hasAlpha){
                 return original[1+channel+i*4];
             } else {
@@ -120,7 +130,7 @@ public class ByteImage {
         }
 
 
-        private void gaussSmooth(int start,int num,int stride){
+        protected void gaussSmooth(int start,int num,int stride){
             int buffsize = num + 3;
             float[] w1,w2;
             w1 = new float[buffsize];
@@ -148,7 +158,7 @@ public class ByteImage {
             }
         }
 
-        private void compute_coefs(double sigma){
+        protected void compute_coefs(double sigma){
             double q, q2, q3;
             if (sigma >= 2.5) {
                 q = 0.98711 * sigma - 0.96330;
@@ -172,6 +182,59 @@ public class ByteImage {
             coefs.sigma = sigma;
             coefs.N = 3;
         }
+    }
+
+    private class NativeWorker extends Worker {
+
+
+
+
+        NativeWorker(int channel){
+            super(channel);
+
+        }
+
+
+
+
+        @Override
+        public void run(){
+            for(int currentScale=0;currentScale<nscales;currentScale++){
+                compute_coefs(retinexScales[currentScale]);
+                if(channel == 0){
+                System.out.println("B:\t"+coefs.B);
+                System.out.println("b0:\t"+coefs.b[0]);
+                System.out.println("b1:\t"+coefs.b[1]);
+                System.out.println("b2:\t"+coefs.b[2]);
+                System.out.println("b3:\t"+coefs.b[3]);
+                System.out.println("sigma:\t"+coefs.sigma);}
+
+
+
+                for(int row=0;row<height;row++){
+                    gaussSmooth(row*width,width,1);
+                }
+                for(int i=0;i<channelSize;i++){
+                    in[i] = out[i];
+                    out[i] = 0;
+                }
+
+                for(int col=0;col<width;col++){
+
+                    gaussSmooth(col,height,width);
+                }
+
+                for(int i=0;i<channelSize;i++){
+                    dest[i*3+channel] +=
+                            (float)(weight*(M.log(translate(myByte(i))+1)-M.log(out[i])));
+                }
+
+
+
+            }
+        }
+
+
     }
 
     private class Summer extends Thread {
@@ -235,6 +298,47 @@ public class ByteImage {
         }
     }
 
+    private class NativeGainer extends Thread {
+
+        int third;
+
+        public NativeGainer(int i){
+            third = i;
+        }
+
+        @Override
+        public void run() {
+            int start = 0, stop = 0;
+            int three = width*height/3;
+            switch (third) {
+                case 0:
+                    stop = three;
+                    break;
+                case 1:
+                    start = three;
+                    stop = 2 * three;
+                    break;
+                case 2:
+                    start = 2 * three;
+                    stop = width*height;
+                    break;
+            }
+            for (int i = start; i < stop; i++) {
+
+                int first = (hasAlpha) ? i * 4 + 1 : i * 3;
+
+                int destFirst = i * 3;
+
+                float logl = (float) M.log(translate(original[first]) + translate(original[first + 1])
+                        + translate(original[first + 2]) + 3.0);
+
+                dest[destFirst] = gain * (float) (M.log(alpha * (translate(original[first]) + 1) - logl) * dest[destFirst]) + offset;
+                dest[destFirst + 1] = gain * (float) (M.log(alpha * (translate(original[first + 1]) + 1) - logl) * dest[destFirst + 1]) + offset;
+                dest[destFirst + 2] = gain * (float) (M.log(alpha * (translate(original[first + 2]) + 1) - logl) * dest[destFirst + 2]) + offset;
+            }
+        }
+    }
+
     private class Pixeler extends Thread {
 
         int third;
@@ -282,6 +386,9 @@ public class ByteImage {
         gain = options.get("gain").floatValue();
         offset = options.get("offset").floatValue();
         lowmem = options.get("lowmem").intValue() == 1;
+        useNative = options.get("native").intValue() == 1;
+
+        System.out.println("native:\t"+useNative);
 
         retinex_scales_distribution();
         width = inputImage.getWidth();
@@ -296,7 +403,6 @@ public class ByteImage {
 
         //System.out.println("Width\t"+width+"\tHeight\t"+height);
         
-        //WritableRaster inRaster = inputImage.getRaster();
         Raster inRaster = inputImage.getRaster();
         
         DataBufferByte dbIn = (DataBufferByte) inRaster.getDataBuffer();
@@ -313,7 +419,11 @@ public class ByteImage {
         weight = (float) 1.0 / nscales;
         Worker[] workers = new Worker[3];
         for(int channel = 0; channel < 3; channel++){
-            workers[channel] = new Worker(channel);
+            if (useNative) {
+                workers[channel] = new NativeWorker(channel);
+            } else {
+                workers[channel] = new Worker(channel);
+            }
             workers[channel].start();
             if(lowmem){
                 try {
@@ -341,7 +451,12 @@ public class ByteImage {
         Thread[] gainers = new Thread[3];
 
         for(int i=0;i<3;i++){
-            gainers[i] = new Gainer(i);
+            if(useNative){
+                gainers[i] = new NativeGainer(i);
+            } else {
+                gainers[i] = new Gainer(i);
+            }
+            
             gainers[i].start();
         }
 
