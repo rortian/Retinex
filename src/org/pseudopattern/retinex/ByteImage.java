@@ -61,7 +61,7 @@ public class ByteImage {
         final int channel;
         GaussCoeff coefs;
         float[] in,out;
-
+        BufferedWriter bw_one,bw_two,bw_three;
 
         Worker(int channel){
             super();
@@ -72,11 +72,18 @@ public class ByteImage {
             for(int i=0;i<channelSize;i++){
                 in[i] = translate(myByte(i))+1.0f;
             }
-
-            
-
-
             coefs = new GaussCoeff();
+
+
+            try {
+                long time = System.currentTimeMillis();
+                bw_one = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/all/one-" + channel+"-"+time));
+                bw_two = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/all/two-" + channel+"-"+time));
+                bw_three = new BufferedWriter(new FileWriter("/home/rortian/retinex-goofy/all/three-" + channel+"-"+time));
+            } catch (IOException ex) {
+                Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
         }
 
         protected byte myByte(int i){
@@ -122,6 +129,44 @@ public class ByteImage {
                 for(int i=0;i<channelSize;i++){
                     dest[i*3+channel] += 
                             (float)(weight*(Math.log(translate(myByte(i))+1)-Math.log(out[i])));
+                }
+
+
+                try {
+                    switch (currentScale){
+                        case 0:
+                            for(int i=0;i<channelSize;i++){
+                                bw_one.write(String.valueOf(in[i])+"\t");
+                                bw_one.write(String.valueOf(out[i])+"\t");
+                                bw_one.write(String.valueOf((float)(weight*(Math.log(translate(myByte(i))+1)-Math.log(out[i]))))+"\t");
+                                bw_one.write(String.valueOf(dest[i*3+channel]));
+                                bw_one.newLine();
+                            }
+                            bw_one.close();
+                            break;
+                        case 1:
+                            for(int i=0;i<channelSize;i++){
+                                bw_two.write(String.valueOf(in[i])+"\t");
+                                bw_two.write(String.valueOf(out[i])+"\t");
+                                bw_two.write(String.valueOf((float)(weight*(Math.log(translate(myByte(i))+1)-Math.log(out[i]))))+"\t");
+                                bw_two.write(String.valueOf(dest[i*3+channel]));
+                                bw_two.newLine();
+                            }
+                            bw_two.close();
+                            break;
+                        case 2:
+                            for(int i=0;i<channelSize;i++){
+                                bw_three.write(String.valueOf(in[i])+"\t");
+                                bw_three.write(String.valueOf(out[i])+"\t");
+                                bw_three.write(String.valueOf((float)(weight*(Math.log(translate(myByte(i))+1)-Math.log(out[i]))))+"\t");
+                                bw_three.write(String.valueOf(dest[i*3+channel]));
+                                bw_three.newLine();
+                            }
+                            bw_three.close();
+                            break;
+                    }
+                } catch (IOException e){
+                    Logger.getLogger(ByteImage.class.getName()).log(Level.SEVERE, null, e);
                 }
 
                 

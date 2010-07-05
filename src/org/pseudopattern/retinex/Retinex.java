@@ -40,9 +40,6 @@ public class Retinex {
 
     public static void retinex(File input,File output) throws IOException{
         HashMap<String,Number> empty = new HashMap<String,Number>();
-        //empty.put("nscales", 2);
-        //empty.put("scale", 14);
-        empty.put("native", 1);
         retinex(input,output,empty);
     }
 
